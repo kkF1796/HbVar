@@ -1,0 +1,916 @@
+/**
+ * JavaCC template file created by SF JavaCC plugin 1.5.28+ wizard for JavaCC 1.5.0+
+ */
+options
+{
+  static = true;
+}
+
+PARSER_BEGIN(GrammarHbVar)
+package grammarHbVar;
+
+import user.*;
+import java.util.*;
+import java.io.*;
+
+
+
+import mutationStructures.*;
+import helpers.*;
+
+import java.lang.Object;
+
+public class GrammarHbVar
+{
+   /*Function that returns an ArrayList of all mutations read on the Web Page after parsing
+   * (with the grammar)*/
+  public MutationList grammarParsing() throws ParseException,FileNotFoundException
+  {
+    //System.out.println("read file: ");
+
+    int i=1;
+    ArrayList<Integer> lineIndex = new ArrayList<Integer>();
+    ArrayList<Mutation> listMutation=new ArrayList<Mutation>();
+    
+      try
+      {
+
+		
+        while(true){ 
+        // System.out.println(" ");
+        //System.out.println("line: "+i);
+       
+
+			Entry entry=GrammarHbVar.one_line();
+		
+		
+		
+			if((entry.getName()).equals("newLine")){
+			  //System.out.println("jump line.");
+	          i++;
+			}else if((entry.getName()).equals("EOF")){
+			  //System.out.println("Parsing terminated.");
+	          break;
+			}
+			else if((entry.getName()).equals("unexpected")){
+			  //System.out.println("unexpected term.");
+			  lineIndex.add(i);//keep the number of the line not read in order to display ignored lines
+	          i++;
+			}else{
+			  //System.out.println("Line parsed. i="+ i);
+			  listMutation.addAll(entry.getMutations());
+	          i++;
+			}
+		}
+		
+      }
+    
+      catch (Exception e) 
+      {
+        System.out.println("NOK."); 
+        System.out.println(e.getMessage());
+      }
+      
+      catch (Error e)
+      {
+        System.out.println("Oops."); 
+        System.out.println(e.getMessage());
+      }
+
+  
+
+
+		MutationList mutationList = new MutationList(lineIndex, listMutation);//return ignored lines and mutations created
+		return mutationList;
+  }
+	  //in case the compiler encounters a line which is not included in the grammar, it continues reading tokens
+	  //until the the token kind with is end of the line in our case
+      static void error_skipto(int kind) {
+	  ParseException e = generateParseException();  // generate the exception object.
+	  //System.out.println(e.toString());  // print the error message
+	  Token t;
+	  do {
+	    t = getNextToken();
+	  } while (t.kind != kind);
+	
+	}
+   
+
+}
+PARSER_END(GrammarHbVar)
+
+SKIP :
+{
+  " "
+| "\r"
+| "\t"
+
+}
+TOKEN :
+{
+  < nextline: "\n">
+
+ 
+}
+TOKEN : /* NUMBERS */
+{
+  < DIGIT : [ "0"-"9" ] >
+| 
+  < NUMBER : (< DIGIT >)+ >
+ 
+}
+
+TOKEN : /* TEXT */
+{
+   < LETTER : [ "A"-"Z","a"-"z","á","è","é","ô","ä","ö","ê","ü","à","å","î","ç","Ç","ã"] >
+
+
+}
+
+TOKEN : /* SYMBOLS */
+{
+  < HYPHENE : ["-"] >
+  | < CHANGETO : [">"] >
+| < PARENTHESIS : ["(",")"] > 
+|  < SYMBOLS : ["_",";","."," ", "[","]","<", ":","'","?","/","+",","] >
+| < DOLLAR : ["$"] >
+
+
+}
+
+TOKEN : { <UNEXPECTED: ~[] > }
+
+/*the columns name, mutation and hgvsname are separated by separator*/
+void separator():
+{
+}
+{
+  "***"
+}
+
+String or():
+{
+  String s;
+  Token t;
+}
+{
+  
+    (
+      	"or"
+    	{return "or";}
+  	)
+  |
+  	(
+  	  	"OR"
+  		{return "OR";}
+ 	)
+  |
+  	(
+  		"Or"
+  		{return "Or";}
+ 	)	
+  
+}
+
+String and():
+{
+  String s;
+  Token t;
+}
+{
+  
+    (
+      	"AND"
+    	{return "AND";}
+  	)
+  |
+  	(
+  	  	"and"
+  		{return "and";}
+ 	)
+  |
+  	(
+  		"And"
+  		{return "And";}
+ 	)	
+  
+}
+
+/*with one_line we parse one line and return an object of type Entry*/
+Entry one_line() :
+{
+  Entry entry;
+}
+{	try {
+	  	(	  	  
+		  entry = entry() (<nextline>)
+		  {
+		    return entry;
+		  }
+			| < nextline >
+		  {
+		    return new Entry("newLine");
+		  }
+		 	| <EOF>
+		  {
+		    return new Entry("EOF");
+		  }
+		)
+	
+	}
+	/*if the line dosn't correspond to our grammar we will skip it but keep the
+	number of the line in an array and return it*/
+	catch (ParseException e){
+		error_skipto(nextline);
+		return new Entry("unexpected");
+  	}
+	
+	
+	
+}
+
+String insideParenthesis():
+{
+  Token t;//t is an image and that is why for its recovery we use .image
+  StringBuilder txt = new StringBuilder();
+
+}
+{
+  (
+    (
+    	<UNEXPECTED>
+  	)|
+    (
+    	t = <DIGIT>
+    	{txt = txt.append(t.image);}
+  	)|
+  	 (
+    	t = <LETTER>
+    	{txt = txt.append(t.image);}
+	)
+	 | (
+		t = <NUMBER>
+		{txt = txt.append(t.image);}
+	)
+	|
+	(
+		t = <HYPHENE>
+		{txt = txt.append(t.image);}
+	)
+	 |
+	 (
+		t = <SYMBOLS>
+		{txt = txt.append(t.image);}
+	)
+	)+
+	//{System.out.println("insideParathesis: "+txt+"\n");}
+	{return txt.toString();}
+}
+
+
+String texte():
+{
+  Token t;
+  StringBuilder txt = new StringBuilder();
+  String s;
+  AminoAcid amino;
+  Protein prot;
+}
+{
+  
+  (
+    	(
+    	  <DOLLAR>
+    	  {txt = txt.append(" ");}    	)
+  	| 
+  		(	t = <UNEXPECTED>
+	   		
+		)
+	|
+    	(	t = <SYMBOLS>
+	   		{txt = txt.append(t.image);}
+		)
+	|
+		(
+	   		t = <CHANGETO>
+	   		{txt = txt.append(t.image);}
+		)
+	|
+		(
+	     	t = <HYPHENE>
+			{txt = txt.append(t.image);}
+		)
+	|
+		(
+	   		t = <PARENTHESIS> {txt = txt.append(t.image);}
+		)
+	|
+		(
+	   		t = <LETTER> {txt = txt.append(t.image);}
+		)
+	|
+		(
+	  		t = <NUMBER> {txt = txt.append(t.image);}
+		)
+	|
+		(  
+	   		t = <DIGIT> {txt = txt.append(t.image);}
+		)
+  	|
+  			s = or() {txt = txt.append(s);}
+  	|
+  			s = and() {txt = txt.append(s);}
+  			
+  	| 		("Hb"){txt = txt.append("Hb");}
+  	
+  	|     	prot = proteinchain(){txt = txt.append(txt.append(prot.getNameHbVar()));}
+  	
+  	|
+  			amino = aminoAcid() {txt = txt.append(amino.getName());}
+  	
+  	)+
+			//{ System.out.println(txt);}
+  			{return txt.toString();}
+}
+
+AminoAcid aminoAcid():
+{
+  String s;
+  AminoAcid amino;
+}
+{
+  (
+    
+  	"Glu" { s = "Glu";}|
+  	"Asp" { s = "Asp";}|
+  	"Ala" { s = "Ala";}|
+  	"Arg" { s = "Arg";}|
+  	"Asn" { s = "Asn";}|
+  	"Cys" { s = "Cys";}|
+  	"Gln" { s = "Gln";}|
+  	"Gly" { s = "Gly";}|
+  	"His" { s = "His";}|
+  	"Ile" { s = "Ile";}|
+  	"Leu" { s = "Leu";}|
+  	"Lys" { s = "Lys";}|
+  	"Met" { s = "Met";}|
+  	"Phe" { s = "Phe";}|
+  	"Pro" { s = "Pro";}|
+  	"Ser" { s = "Ser";}|
+  	"Thr" { s = "Thr";}|
+  	"Trp" { s = "Trp";}|
+  	"Tyr" { s = "Tyr";}|
+  	"Val" { s = "Val";}
+ )
+  	//{ System.out.println("amino is taken \n");}
+  	{amino = new AminoAcid(s);}
+  	{ return amino;}
+}
+
+
+Protein proteinchain():
+{
+  Token t;
+  String s;
+  Protein prot;
+}
+{
+  
+  	(
+	  	("Ggamma" { s = "Ggamma"; })
+	  	|
+	  	("Agamma" { s = "Agamma"; })
+	  	|
+	  	("delta"{s = "delta";})
+	  	|
+	  	("beta"{s = "beta";})
+	  	|
+	  	("alpha1"{s = "alpha1";})
+	  	|
+	  	("alpha2"{s =  "alpha2";})
+	)
+  	
+  	{
+	  prot = new Protein(s);
+  	  return prot;
+  	}
+}
+
+
+String number():
+{
+  String num = "";
+  Token t;
+}
+{
+  (t = <NUMBER> {num = t.image;}|
+   t = <DIGIT> { num = t.image;})
+
+   { return num; }
+}
+
+
+/*<PARENTHESIS> txt <PARENTHESIS>*/
+String index1():
+{
+  String indTxt = " ";
+}
+{
+  
+  <PARENTHESIS>
+  (
+    indTxt = insideParenthesis()
+  )?
+  <PARENTHESIS>
+
+  {return indTxt;}
+}
+
+/*<PARENTHESIS> num <PARENTHESIS>*/
+int index2():
+{
+  String indNum;
+}
+{
+  <PARENTHESIS>
+  indNum = number()
+  <PARENTHESIS>
+
+  {return Integer.valueOf(indNum);}//cast from string to int
+}
+
+ArrayList<Protein> protein()://returns one or two proteins because some mutation types have protein or protein
+{
+  Protein p1, p2;
+  ArrayList<Protein> proteinPair = new ArrayList<Protein>();
+ 
+}
+{
+
+  	p1 = proteinchain()
+  	{proteinPair.add(p1);}
+  	(
+
+  		or()
+  		p2 = proteinchain()
+  		{proteinPair.add(p2);}
+  	)?
+  	{ return proteinPair; } 
+}
+
+AminoAcidSeq aminoAcidSequence():
+{
+  	ArrayList<AminoAcid> seq = new ArrayList<AminoAcid>();
+	AminoAcid amino;
+}
+{
+
+  amino = aminoAcid()
+  	{
+	  	seq.add(amino);
+	  	
+	}
+  			
+  (
+    (
+
+      <HYPHENE>amino = aminoAcid()
+      {
+		seq.add(amino);
+	  }
+
+    )+
+  )?
+   
+	{
+	  AminoAcidSeq seqClass = new AminoAcidSeq(seq);
+	  return seqClass;
+	}
+}
+
+AminoAcidSeq aminoAcidSequenceReverse():
+{
+  	ArrayList<AminoAcid> seq = new ArrayList<AminoAcid>();
+	AminoAcid amino;
+}
+{
+
+	
+	(
+		amino = aminoAcid() <HYPHENE>
+		{
+			seq.add(amino);
+		}
+		
+	)+
+   	(
+		amino = aminoAcid()
+		{
+			seq.add(amino);
+		}
+		
+   	)?
+ 
+	{
+	  AminoAcidSeq seqClass = new AminoAcidSeq(seq);
+	  return seqClass;
+	}
+	
+}
+
+/*the two cases replacement and replace with*/
+/*replacement : Hb F-Meinohama Ggamma 5(A2) Glu>Gly HBG2:c.17A>G */
+/*replace with: Hb Antalya beta 2 - 5 His-Leu-Thr-Pro replaced with His-Ser-Asp-Ser HBB:c.[16delC;8_9insC]*/
+MutationType replaceSet(Header header, AminoAcidSeq seqOld):
+{
+  Replacement replace;
+  AminoAcidSeq seqNew;
+}
+{
+
+	(<CHANGETO> seqNew = aminoAcidSequence()
+	| "replaced with" seqNew = aminoAcidSequence())
+
+	{replace = new Replacement(header, seqOld, seqNew);}
+	
+	{return replace;}
+	//{ System.out.println("replace set is read\n"); }
+}
+
+/*add an interval of amino acids*/
+/*example: Hb Zunyi beta 147, Stop>Gln; modified C-terminal sequence: (147)Gln-Ala-Arg-Phe-Leu-Ala-Val-Gln-Phe-Leu-Leu- Lys-Val-Pro-Leu-Phe-Pro-Lys-Ser-Asn-(167)Tyr-COOH HBB:c.442T>C*/
+AddChain addChain(Header header):
+{
+  AddChain addChain;
+  AminoAcidSeq seq;
+  AminoAcid amino;
+}
+{
+	 <SYMBOLS> "modified C" <HYPHENE>"terminal sequence" <SYMBOLS> //modified C terminal sequence 
+	 index2()
+	
+	seq = aminoAcidSequenceReverse()
+	
+	index2()
+	(amino= aminoAcid() <HYPHENE>{seq.add(amino);})? "COOH"
+	
+
+	{addChain = new AddChain(header, seq);}
+	
+	
+	//{ System.out.println("add chaine is read\n"); }
+	{return addChain;}
+}
+
+/*add one amino acid or an interval(addChain or AddAcid)*/
+MutationType addSet(Header header):
+{
+  MutationType mutationType;
+  AminoAcid amino;
+}
+{
+  	
+  	/*add oonly one amino acid*/
+	/*example: Hb Zurich-Altstetten***alpha2 142( ) Stop>His***HBA2:c.[427T>C;429A>T] */
+	("Stop"|"STOP"|"stop") <CHANGETO>amino = aminoAcid()
+	{ mutationType = new AddAcid(header, amino); }
+
+	/*this part only exists in addChain
+	/if addChain exists than the value of mutaionType becomes un addchain*/
+	(mutationType = addChain(header))?
+
+	
+	
+	//{ System.out.println("add set is read\n"); }
+	{return mutationType;}
+}
+
+/*all mutations that contain ->,such mutations can have one deleted amino acid or an interval of them*/
+/*example : Hb Bakersfield***alpha1 50(CE8) His->0*/
+/*when a sequence of amino acids is deleted, it can be replaced by another sequence*/
+/*example : Hb Pohnpei***alpha2 137(H20) - 138(H21) Thr-Ser->0 AND inserted Thr*/
+MutationType deleteSet(Header header, AminoAcidSeq seq) :
+{
+  DeleteSet delete;
+  Boolean inserted = false;
+  AminoAcid aminoInserted;
+}
+{
+  
+  "->0"
+  /*the inserted part is optional*/
+    (
+      
+
+  		("and inserted"| "AND inserted" | "And inserted")
+
+  		(aminoInserted = aminoAcid())
+
+  		{inserted = true;}
+  		{ delete = new DeleteSet(header, seq, inserted, aminoInserted); }
+  		{return delete;}
+	)?
+  /*call of constructor*/
+   { delete = new DeleteSet(header, seq); }
+   {return delete;}
+  
+}
+
+/*A set that contains the mutations replaceSet, deleteSet*/
+MutationType modify(Header header) :
+{
+  AminoAcidSeq seq;
+  MutationType mutationType;
+}
+{
+  	//{ System.out.println("in modify\n"); }
+	(seq = aminoAcidSequence()(mutationType = replaceSet(header,seq) |mutationType = deleteSet(header,seq) ))
+	
+	{return mutationType;}
+}
+
+/*contains protein [or protein] index(text) [- index(text)] */
+Header header():
+{
+  //elements which help recovery
+  int firstIndNum,lastIndNum;
+  String firstIndTxt="",lastIndTxt="",tempFirstIndNum="0",tempLastIndNum="0";//initialisation must be done
+  Header header;
+  
+}
+{
+  	
+	
+	//can be just one number or an interval
+	tempFirstIndNum = number()(< SYMBOLS >)?(firstIndTxt = index1())?
+	/*the second number is optional*/
+	(<HYPHENE> tempLastIndNum = number()(lastIndTxt = index1())?)?
+
+	//casting of number indexes from string to int
+	{
+	  firstIndNum = Integer.valueOf(tempFirstIndNum);
+	  lastIndNum = Integer.valueOf(tempLastIndNum);
+	}
+	//construct header and return it
+	{header = new Header(firstIndNum, firstIndTxt, lastIndNum, lastIndTxt);}
+	{return header;}
+}
+
+
+/*the mutation containing inserted between*/
+/*example: Hb Bronx Lys-Val-Leu- inserted between codons 68(E12) and 69(E13) of beta HBB:c.207_208insAAAGTGCTC*/
+Insertion insertion() :
+{
+  //elements which help recovery
+  AminoAcidSeq seq;
+  String firstIndTxt="",lastIndTxt="",tempFirstIndNum="",tempLastIndNum="";
+  int firstIndNum,lastIndNum;
+  ArrayList<Protein> proteinPair = new ArrayList<Protein>();
+
+  //constructor elements
+  Header header;
+  Insertion insertion;
+  
+}
+{
+  	/*starts with a sequence of amino acids*/
+	seq = aminoAcidSequenceReverse()
+	("inserted between")
+	("codons")?
+	/*first number*/
+	tempFirstIndNum = number()
+	/*(txt)*/
+	firstIndTxt = index1()
+	(and())
+	/*second number*/
+	tempLastIndNum = number()
+	/*(txt)*/
+	lastIndTxt = index1()
+	/*of*/
+	(<LETTER>)+
+
+
+	//casting of numbers from string to int
+	{
+	  firstIndNum = Integer.valueOf(tempFirstIndNum);
+	  lastIndNum = Integer.valueOf(tempLastIndNum);
+	}
+	/*construction*/
+	{
+	  /*call constructor*/
+	  header = new Header(firstIndNum, firstIndTxt, lastIndNum, lastIndTxt);
+	  insertion = new Insertion(header, seq);
+
+	}
+	{return insertion;}
+	
+}
+
+
+/*the third column hgvsName*/
+String HGVSname() :
+{
+  String s;
+}
+{
+  s = texte() 
+
+  //{System.out.println("HGVSname: "+s+"\n"); }
+  {return s;}
+}
+
+/*the first column: the mutation name*/
+String variantName(): 
+{
+  StringBuilder name= new StringBuilder();
+  String txt;
+  Protein prot;
+}
+	
+{
+  
+  txt = texte() {name.append(txt);}
+  
+  //{System.out.println("VariantName: "+name.toString()+"\n"); }
+  {return name.toString();}
+}
+
+/*if there is more than one mutationType then type() is called
+and it returns the mutationTypes separated by "and" (finds recursively)
+there is no need to recover the list of proteins since we do it ione time in mutationType()*/
+ArrayList<MutationType> type(): 
+{
+	Header header;
+	MutationType mutationType;
+	ArrayList<MutationType> listOfTypes = new ArrayList<MutationType>();
+	ArrayList<MutationType> listOfTypesFound = new ArrayList<MutationType>();
+}
+{
+	/*Mutation= <mutatonType AND mutationType AND mutationType>*/
+  	(
+  	  
+		  	(
+		  	    mutationType = insertion()
+		  	    /*proteins*/
+		  	    protein()
+		  	    {listOfTypes.add(mutationType);}
+		  	)
+		 	|	 
+			(
+			  	protein()
+			 	header = header()
+			 	
+			
+			  	(/*mutationType = theory(header) |*/ mutationType = modify(header) | mutationType = addSet(header) )
+				/*add to list of types because one mutation can have more than one mutation type*/
+			  	{ listOfTypes.add(mutationType); }
+			  
+			)
+	)
+
+	(
+		(and())
+		listOfTypesFound = type()
+		{listOfTypes.addAll(listOfTypesFound); }
+	)?
+
+
+	//{ System.out.println("a set of mutationTypes is read\n"); }
+	{return listOfTypes;}
+}
+	
+/*returns a list of mutations*/
+/*the example below contains three mutation types with are separated by the ands between them*/
+/*inserted between codons 68(E12) AND 69(E13) of beta AND beta 1(NA1) Gly>Cys AND beta 139(H17) Asn->0*/
+/*if there are two proteins in the protein list then two mutations are created each one having one of the proteins
+for example: beta or alpha 139(H17) Asn->0 returns two mutations:
+alpha 139(H17) Asn->0
+beta 139(H17) Asn->0 */
+
+ArrayList<Mutation> mutationType(): 
+{
+	Header header;
+	Mutation mutation;
+	ArrayList<Protein> proteinList = new ArrayList<Protein>();
+	ArrayList<MutationType> listOfTypes = new ArrayList<MutationType>();
+	ArrayList<MutationType> listOfTypesFound = new ArrayList<MutationType>();
+
+	ArrayList<Mutation> mutations = new ArrayList<Mutation>();
+	MutationType mutationType;
+}
+{
+	/*Mutation= <mutatonType AND mutationType AND mutationType>*/
+  	(  	  
+		  	(
+		  	    mutationType = insertion()
+		  	    /*proteins*/
+		  	    proteinList = protein()
+		  	    {listOfTypes.add(mutationType);}
+		  	)
+		 	|	 
+			(
+			  	proteinList = protein()
+			 	header = header()
+			
+			
+			  	(/*mutationType = theory(header) |*/ mutationType = modify(header) | mutationType = addSet(header) )
+				/*add to list of types because one mutation can have more than one mutation type*/
+			  	{ listOfTypes.add(mutationType); }
+			  
+			)
+	)
+
+	/*if there is another type in this mutation we call type find all types recursively*/
+	(
+		and()
+		listOfTypesFound = type()
+		{listOfTypes.addAll(listOfTypesFound);}
+	)?
+
+
+	//{ System.out.println("a set of mutationTypes is read\n"); }
+	{
+	  /*create a mutation for every protein*/
+	  	for (Protein protein : proteinList) {
+			mutation = new Mutation(protein,listOfTypes);
+			mutations.add(mutation);
+		}
+
+		return mutations;
+	  
+	}
+}
+
+/*returns all mutations in entry*/
+/*An entry can have more than one mutation separated by OR*/
+/*example: beta 42(CD1) - 44(CD3) Phe-Glu-Ser->0 OR beta 43(CD2) - 45(CD4) Glu-Ser-Phe->0*/
+/*each one is counted in its own mutation*/
+/*beta 42(CD1) - 44(CD3) Phe-Glu-Ser->0*/
+/*beta 43(CD2) - 45(CD4) Glu-Ser-Phe->0*/
+/*<mutation OR mutation OR mutation OR >*/
+ArrayList<Mutation> mutation():
+{
+	
+	ArrayList<Mutation> mutationsFound = new ArrayList<Mutation>();
+	ArrayList<Mutation> mutations = new ArrayList<Mutation>();
+ 
+}
+{
+	mutationsFound = mutationType()
+	{
+		
+		/*add the mutations found to the other mutations*/
+		mutations.addAll(mutationsFound);
+	}
+
+	(
+		or()
+		/*find the other mutations recursively*/
+		mutationsFound = mutation()
+		{mutations.addAll(mutationsFound);}
+ 	)?
+ 
+  //{ System.out.println("a set of mutations is read \n"); }
+  {return mutations;}
+  
+}
+
+/*entry corresponds to an entry in the database table*/
+/*name (separator) mutations (separator) hgvsname*/
+/*mutations = mutation or mutation or mutation or....*/
+/*mutation = mutatiotype and mutationtype and mutationtype and...*/
+Entry entry():
+{
+	Entry entry;
+	String varName, hgvsName="";
+	ArrayList<Mutation> mutations = new ArrayList<Mutation>();
+	
+}
+{
+  	/*name of entry*/
+	( varName = variantName())
+	
+	separator()
+
+	(or())?
+	mutations = mutation()
+
+	separator()
+	
+  
+	/*the HGVSname() is optional*/
+	/*certain entries do not contain this part*/
+	(hgvsName = HGVSname())?
+	{
+    	entry = new Entry(varName, mutations,  hgvsName);
+    	//System.out.println("entry read");
+    	//display data for every mutation
+    	//entry.print();
+    	
+    
+  	}
+	
+	{return entry;}
+  
+}
+
